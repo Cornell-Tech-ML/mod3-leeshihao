@@ -173,26 +173,29 @@ def tensor_map(
     ) -> None:
         # TODO: Implement for Task 3.1.
         # Check if out and in are stride-aligned to avoid indexing
-        # if len(out_strides) == len(in_strides):
-        #     if np.all((out_strides == in_strides)):
-        #         # Directly apply function to the whole array
-        #         for i in prange(len(out)):
-        #             out[i] = fn(in_storage[i])
-        # else:
-        # Convert for loop into parallel
-        for ordinal in prange(len(out)):
-            # Initialize the out_index and in_index arrays for each thread
-            out_index: Index = np.zeros(MAX_DIMS, np.int32)
-            in_index: Index = np.zeros(MAX_DIMS, np.int32)
-            # Convert ordinal (linear position) to the multidimensional `out_index`
-            to_index(ordinal, out_shape, out_index)
-            # Broadcast `out_index` to `in_index`
-            broadcast_index(out_index, out_shape, in_shape, in_index)
-            # Convert `out_index` and `in_index` to positions in the respective storage arrays
-            out_pos = index_to_position(out_index, out_strides)
-            in_pos = index_to_position(in_index, in_strides)
-            # Apply the function and store the result in the `out` array
-            out[out_pos] = fn(in_storage[in_pos])
+        stride_aligned: bool = False
+        if len(out_strides) == len(in_strides) and np.all((out_strides == in_strides)):
+            # Check shape is same too
+            if np.all(out_shape == in_shape):
+                stride_aligned = True
+        if stride_aligned:
+            for i in prange(len(out)):
+                out[i] = fn(in_storage[i])
+        else:
+            # Convert for loop into parallel
+            for ordinal in prange(len(out)):
+                # Initialize the out_index and in_index arrays for each thread
+                out_index: Index = np.zeros(MAX_DIMS, np.int32)
+                in_index: Index = np.zeros(MAX_DIMS, np.int32)
+                # Convert ordinal (linear position) to the multidimensional `out_index`
+                to_index(ordinal, out_shape, out_index)
+                # Broadcast `out_index` to `in_index`
+                broadcast_index(out_index, out_shape, in_shape, in_index)
+                # Convert `out_index` and `in_index` to positions in the respective storage arrays
+                out_pos = index_to_position(out_index, out_strides)
+                in_pos = index_to_position(in_index, in_strides)
+                # Apply the function and store the result in the `out` array
+                out[out_pos] = fn(in_storage[in_pos])
 
     return njit(_map, parallel=True)  # type: ignore
 
