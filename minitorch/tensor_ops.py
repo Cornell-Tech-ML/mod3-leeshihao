@@ -48,21 +48,7 @@ class TensorOps:
     @staticmethod
     def matrix_multiply(a: Tensor, b: Tensor) -> Tensor:
         """Matrix multiply"""
-        assert a.shape[-1] == b.shape[-2]
-
-        # Calculate the resulting shape
-        result_shape = tuple(shape_broadcast(a.shape[:-2], b.shape[:-2])) + (
-            a.shape[-2],
-            b.shape[-1],
-        )
-        # Create an output tensor with the resulting shape
-        out = a.zeros(result_shape)
-        # Perform the matrix multiplication
-        for i in range(result_shape[-2]):
-            for j in range(result_shape[-1]):
-                for k in range(a.shape[-1]):
-                    out[i, j] += a[i, k] * b[k, j]
-        return out
+        ...
 
     cuda = False
 
@@ -244,7 +230,21 @@ class SimpleOps(TensorOps):
     @staticmethod
     def matrix_multiply(a: "Tensor", b: "Tensor") -> "Tensor":
         """Matrix multiplication"""
-        raise NotImplementedError("Not implemented in this assignment")
+        assert a.shape[-1] == b.shape[-2]
+
+        # Calculate the resulting shape
+        result_shape = tuple(shape_broadcast(a.shape[:-2], b.shape[:-2])) + (
+            a.shape[-2],
+            b.shape[-1],
+        )
+        # Create an output tensor with the resulting shape
+        out = a.zeros(result_shape)
+        # Perform the matrix multiplication
+        for i in range(result_shape[-2]):
+            for j in range(result_shape[-1]):
+                for k in range(a.shape[-1]):
+                    out[i, j] += a[i, k] * b[k, j]
+        return out
 
     is_cuda = False
 
