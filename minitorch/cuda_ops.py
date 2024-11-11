@@ -348,14 +348,27 @@ def tensor_reduce(
         pos = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
-        i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
-        # Initialize shared memory
-        if i < out_size:
-            to_index(i, out_shape, out_index)
-            j = index_to_position(out_index, a_strides)
-            cache[pos] = a_storage[j]
-        else:
-            cache[pos] = 0.0  # Handle out-of-bounds
+        # Guard for out_pos
+        if out_pos >= out_size:
+            return
+
+        # Calculate the partial index in `out_shape`
+        to_index(out_pos, out_shape, out_index)
+
+        # Load all elements along `reduce_dim` into consecutive cache positions
+        num_elements_to_reduce = a_shape[reduce_dim]
+        for dim_pos in range(num_elements_to_reduce):
+            if pos < num_elements_to_reduce:
+                # Update `out_index` along `reduce_dim` to load each element
+                out_index[reduce_dim] = dim_pos
+                a_pos = index_to_position(out_index, a_strides)
+
+                # Load element into cache at position `dim_pos`
+                cache[dim_pos] = a_storage[a_pos]
+            else:
+                cache[dim_pos] = (
+                    reduce_value  # Fill remaining cache slots with reduce_value as fallback
+                )
 
         cuda.syncthreads()
 
