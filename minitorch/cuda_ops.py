@@ -348,19 +348,18 @@ def tensor_reduce(
         local_i = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
-        i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
+        # i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
         # make sure we don't go out of bounds
         if out_pos < out_size:
-            # Calculate the partial index in `out_shape`
-            to_index(out_pos, out_shape, out_index)
-
             # Copy values into cache along reduce dim
             num_elements_to_reduce = a_shape[reduce_dim]
-            if i < num_elements_to_reduce:
+            if local_i < num_elements_to_reduce:
+                # Calculate the partial index in `out_shape`
+                to_index(out_pos, out_shape, out_index)
                 # Set reduce_dim index to i for position in a_storage
                 out_index[reduce_dim] = (
-                    i  # out_index is local so we can directly edit it
+                    local_i  # out_index is local so we can directly edit it
                 )
                 a_pos = index_to_position(
                     out_index, a_strides
