@@ -345,44 +345,44 @@ def tensor_reduce(
         cache = cuda.shared.array(BLOCK_DIM, numba.float64)
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_pos = cuda.blockIdx.x
-        pos = cuda.threadIdx.x
+        local_i = cuda.threadIdx.x
 
         # TODO: Implement for Task 3.3.
-        # Guard for out_pos
-        if out_pos >= out_size:
-            return
+        i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
         # Calculate the partial index in `out_shape`
         to_index(out_pos, out_shape, out_index)
 
-        # Load all elements along `reduce_dim` into consecutive cache positions
+        # Copy values into cache along reduce dim
         num_elements_to_reduce = a_shape[reduce_dim]
-        for dim_pos in range(num_elements_to_reduce):
-            if pos < num_elements_to_reduce:
-                # Update `out_index` along `reduce_dim` to load each element
-                out_index[reduce_dim] = dim_pos
-                a_pos = index_to_position(out_index, a_strides)
-
-                # Load element into cache at position `dim_pos`
-                cache[dim_pos] = a_storage[a_pos]
-            else:
-                cache[dim_pos] = (
-                    reduce_value  # Fill remaining cache slots with reduce_value as fallback
-                )
+        if i < num_elements_to_reduce:
+            # Set reduce_dim index to i for position in a_storage
+            out_index[reduce_dim] = i  # out_index is local so we can directly edit it
+            a_pos = index_to_position(
+                out_index, a_strides
+            )  # can make even more efficient by directly calculating
+            # Load element into cache at position `pos`
+            cache[local_i] = a_storage[a_pos]
+        else:
+            cache[local_i] = reduce_value  # Handle out-of-bounds
 
         cuda.syncthreads()
 
         offset = 1
         # Perform reduction in shared memory
         while offset < BLOCK_DIM:
-            if pos % (2 * offset) == 0 and pos + offset < BLOCK_DIM:
-                cache[pos] = fn(cache[pos], cache[pos + offset])
+            if local_i % (2 * offset) == 0 and local_i + offset < BLOCK_DIM:
+                cache[local_i] = fn(cache[local_i], cache[local_i + offset])
             offset *= 2  # Double the offset
             cuda.syncthreads()  # Ensure all threads have completed the addition
 
         # Write the result for this block to the output
-        if pos == 0:
-            out[out_pos] = cache[0]
+        if local_i == 0:
+            # reset reduce_dim index to 0 for calculating out_pos
+            out_index[reduce_dim] = 0
+            out_pos = index_to_position(out_index, out_strides)
+            if out_pos < out_size:  # is this check needed?
+                out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
