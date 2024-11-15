@@ -350,39 +350,47 @@ def tensor_reduce(
         # TODO: Implement for Task 3.3.
         i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
 
-        # Calculate the partial index in `out_shape`
-        to_index(out_pos, out_shape, out_index)
+        # make sure we don't go out of bounds
+        if out_pos < out_size:
+            # Calculate the partial index in `out_shape`
+            to_index(out_pos, out_shape, out_index)
 
-        # Copy values into cache along reduce dim
-        num_elements_to_reduce = a_shape[reduce_dim]
-        if i < num_elements_to_reduce:
-            # Set reduce_dim index to i for position in a_storage
-            out_index[reduce_dim] = i  # out_index is local so we can directly edit it
-            a_pos = index_to_position(
-                out_index, a_strides
-            )  # can make even more efficient by directly calculating
-            # Load element into cache at position `pos`
-            cache[local_i] = a_storage[a_pos]
-        else:
-            cache[local_i] = reduce_value  # Handle out-of-bounds
+            # Copy values into cache along reduce dim
+            num_elements_to_reduce = a_shape[reduce_dim]
+            if i < num_elements_to_reduce:
+                # Set reduce_dim index to i for position in a_storage
+                out_index[reduce_dim] = (
+                    i  # out_index is local so we can directly edit it
+                )
+                a_pos = index_to_position(
+                    out_index, a_strides
+                )  # can make even more efficient by directly calculating
+                # Load element into cache at position `pos`
+                cache[local_i] = a_storage[a_pos]
+            # else:
+            #     cache[local_i] = reduce_value  # Handle out-of-bounds
 
-        cuda.syncthreads()
+            cuda.syncthreads()
 
-        offset = 1
-        # Perform reduction in shared memory
-        while offset < BLOCK_DIM:
-            if local_i % (2 * offset) == 0 and local_i + offset < BLOCK_DIM:
-                cache[local_i] = fn(cache[local_i], cache[local_i + offset])
-            offset *= 2  # Double the offset
-            cuda.syncthreads()  # Ensure all threads have completed the addition
+            # offset = 1
+            # # Perform reduction in shared memory
+            # while offset < BLOCK_DIM:
+            #     if local_i % (2 * offset) == 0 and local_i + offset < BLOCK_DIM:
+            #         cache[local_i] = fn(cache[local_i], cache[local_i + offset])
+            #     offset *= 2  # Double the offset
+            #     cuda.syncthreads()  # Ensure all threads have completed the addition
 
-        # Write the result for this block to the output
-        if local_i == 0:
-            # reset reduce_dim index to 0 for calculating out_pos
-            # out_index[reduce_dim] = 0
-            # out_pos = index_to_position(out_index, out_strides)
-            if out_pos < out_size:
-                out[out_pos] = cache[0]
+            # Write the result for this block to the output
+            if local_i == 0:
+                # Perform reduction in shared memory using a for loop
+                temp = reduce_value
+                for j in range(num_elements_to_reduce):
+                    temp = fn(temp, cache[j])
+                out[out_pos] = temp
+                # reset reduce_dim index to 0 for calculating out_pos
+                # out_index[reduce_dim] = 0
+                # out_pos = index_to_position(out_index, out_strides)
+                # out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
 
