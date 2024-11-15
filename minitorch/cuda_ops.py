@@ -379,9 +379,9 @@ def tensor_reduce(
         # Write the result for this block to the output
         if local_i == 0:
             # reset reduce_dim index to 0 for calculating out_pos
-            out_index[reduce_dim] = 0
-            out_pos = index_to_position(out_index, out_strides)
-            if out_pos < out_size:  # is this check needed?
+            # out_index[reduce_dim] = 0
+            # out_pos = index_to_position(out_index, out_strides)
+            if out_pos < out_size:
                 out[out_pos] = cache[0]
 
     return jit(_reduce)  # type: ignore
