@@ -515,11 +515,17 @@ def _tensor_matrix_multiply(
             bk_stride = b_strides[-2]
             bj_stride = b_strides[-1]
             for k in range(0, max_k, BLOCK_DIM):
-                # Convert index to contiguous index
-                a_pos = batch * a_batch_stride + i * ai_stride + (k + pi) * ak_stride
-                b_pos = batch * b_batch_stride + (k + pj) * bk_stride + j * bj_stride
-                a_shared[pi, pj] = a_storage[a_pos]
-                b_shared[pi, pj] = b_storage[b_pos]
+                if k + pi < max_k:
+                    # Convert index to contiguous index
+                    a_pos = (
+                        batch * a_batch_stride + i * ai_stride + (k + pi) * ak_stride
+                    )
+                    a_shared[pi, pj] = a_storage[a_pos]
+                if k + pj < max_k:
+                    b_pos = (
+                        batch * b_batch_stride + (k + pj) * bk_stride + j * bj_stride
+                    )
+                    b_shared[pi, pj] = b_storage[b_pos]
                 cuda.syncthreads()
                 for local_k in range(min(BLOCK_DIM, max_k - k)):
                     acc += a_shared[pi, local_k] * b_shared[local_k, pj]
