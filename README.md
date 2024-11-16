@@ -443,9 +443,15 @@ No allocation hoisting found
 None
 
 # Task 3_5
-## Simple dataset
+## Simple dataset - CPU
 ![alt text](./images/simple-cpu.png)
-## Xor dataset
+## Simple dataset - GPU
+![alt text](./images/simple-gpu.png)
+## Xor dataset - CPU
 ![alt text](./images/xor-cpu.png)
-## Split dataset
+## Xor dataset - GPU
+![alt text](./images/xor-gpu.png)
+## Split dataset - CPU
 ![alt text](./images/split-cpu.png)
+## Split dataset - GPU
+![alt text](./images/split-gpu.png)
