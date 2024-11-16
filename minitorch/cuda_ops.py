@@ -526,13 +526,12 @@ def _tensor_matrix_multiply(
             # Compute output
             for local_k in range(min(BLOCK_DIM, max_k - k)):
                 acc += a_shared[pi, local_k] * b_shared[local_k, pj]
+            cuda.syncthreads()
 
-            # Calculate index of out
-            if i < a_shape[-2] and j < b_shape[-1]:
-                out_pos = (
-                    batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
-                )
-                out[out_pos] = acc
+        # Calculate index of out
+        if i < a_shape[-2] and j < b_shape[-1]:
+            out_pos = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
+            out[out_pos] = acc
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
