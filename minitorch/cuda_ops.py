@@ -504,6 +504,7 @@ def _tensor_matrix_multiply(
     #    b) Copy into shared memory for b matrix
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
+    assert a_shape[-1] == b_shape[-2]
     ai_stride = a_strides[-2]
     ak_stride = a_strides[-1]
     bk_stride = b_strides[-2]
@@ -528,7 +529,7 @@ def _tensor_matrix_multiply(
         cuda.syncthreads()
 
     # Calculate index of out
-    if i < a_shape[-2] and j < b_shape[-1]:
+    if i < out_shape[-2] and j < out_shape[-1]:
         out_pos = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
         out[out_pos] = acc
 
