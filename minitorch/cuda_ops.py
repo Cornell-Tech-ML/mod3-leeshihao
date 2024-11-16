@@ -425,16 +425,16 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
     local_j = cuda.threadIdx.y
 
     # Load data into shared memory
-    if i < size and j < size:
+    if local_i < size and local_j < size:
         acc = 0.0
         for k in range(0, size, BLOCK_DIM):
-            a_shared[local_i, local_j] = a[i, k + local_j]
-            b_shared[local_i, local_j] = b[k + local_i, j]
+            a_shared[local_i, local_j] = a[i * size + k + local_j]
+            b_shared[local_i, local_j] = b[(k + local_i) * size + j]
             cuda.syncthreads()
 
             for local_k in range(min(BLOCK_DIM, size - k)):
                 acc += a_shared[local_i, local_k] * b_shared[local_k, local_j]
-        out[i, j] = acc
+        out[i * size + j] = acc
 
 
 jit_mm_practice = jit(_mm_practice)
