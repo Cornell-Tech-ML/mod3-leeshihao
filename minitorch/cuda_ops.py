@@ -511,29 +511,30 @@ def _tensor_matrix_multiply(
     bj_stride = b_strides[-1]
     max_k = a_shape[-1]
 
-    # Load data into shared memory
-    acc = 0.0
-    # 1) Move across shared dimension by block dim.
-    for k in range(0, max_k, BLOCK_DIM):
-        # Convert index to contiguous index
-        # a) Copy into shared memory for a matrix.
-        if i < a_shape[-2] and k + pj < max_k:
-            a_pos = batch * a_batch_stride + i * ai_stride + (k + pj) * ak_stride
-            a_shared[pi, pj] = a_storage[a_pos]
-        # b) Copy into shared memory for b matrix.
-        if j < b_shape[-1] and k + pj < max_k:
-            b_pos = batch * b_batch_stride + (k + pi) * bk_stride + j * bj_stride
-            b_shared[pi, pj] = b_storage[b_pos]
-        cuda.syncthreads()
+    if batch < a_shape[0] and batch < b_shape[0]:
+        # Load data into shared memory
+        acc = 0.0
+        # 1) Move across shared dimension by block dim.
+        for k in range(0, max_k, BLOCK_DIM):
+            # Convert index to contiguous index
+            # a) Copy into shared memory for a matrix.
+            if i < a_shape[-2] and k + pj < max_k:
+                a_pos = batch * a_batch_stride + i * ai_stride + (k + pj) * ak_stride
+                a_shared[pi, pj] = a_storage[a_pos]
+            # b) Copy into shared memory for b matrix.
+            if j < b_shape[-1] and k + pi < max_k:
+                b_pos = batch * b_batch_stride + (k + pi) * bk_stride + j * bj_stride
+                b_shared[pi, pj] = b_storage[b_pos]
+            cuda.syncthreads()
 
-        # c) Compute the dot produce for position c[i, j]
-        for local_k in range(min(BLOCK_DIM, max_k - k)):
-            acc += a_shared[pi, local_k] * b_shared[local_k, pj]
+            # c) Compute the dot produce for position c[i, j]
+            for local_k in range(min(BLOCK_DIM, max_k - k)):
+                acc += a_shared[pi, local_k] * b_shared[local_k, pj]
 
-    # Calculate index of out
-    if i < out_shape[-2] and j < out_shape[-1]:
-        out_pos = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
-        out[out_pos] = acc
+        # Calculate index of out
+        if i < out_shape[-2] and j < out_shape[-1]:
+            out_pos = batch * out_strides[0] + i * out_strides[-2] + j * out_strides[-1]
+            out[out_pos] = acc
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
