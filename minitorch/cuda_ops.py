@@ -378,14 +378,6 @@ def tensor_reduce(
 
             # Write the result for this block to the output
             if local_i == 0:
-                # Perform reduction in shared memory using a for loop
-                # temp = reduce_value
-                # for j in range(num_elements_to_reduce):
-                #     temp = fn(temp, cache[j])
-                # out[out_pos] = temp
-                # reset reduce_dim index to 0 for calculating out_pos
-                # out_index[reduce_dim] = 0
-                # out_pos = index_to_position(out_index, out_strides)
                 out[out_pos] = cache[local_i]
 
     return jit(_reduce)  # type: ignore
@@ -429,21 +421,20 @@ def _mm_practice(out: Storage, a: Storage, b: Storage, size: int) -> None:
 
     i = cuda.blockIdx.x * cuda.blockDim.x + cuda.threadIdx.x
     j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
+    local_i = cuda.threadIdx.x
+    local_j = cuda.threadIdx.y
 
     # Load data into shared memory
-    if i < size:
-        a_shared[cuda.threadIdx.x, cuda.threadIdx.y] = a[i, cuda.threadIdx.y]
-    if j < size:
-        b_shared[cuda.threadIdx.x, cuda.threadIdx.y] = b[cuda.threadIdx.x, j]
-
-    cuda.syncthreads()
-
-    # Perform the multiplication
     if i < size and j < size:
-        sum = 0.0
-        for k in range(size):
-            sum += a_shared[cuda.threadIdx.x, k] * b_shared[k, cuda.threadIdx.y]
-        out[i, j] = sum  # Write the result to global memory
+        acc = 0.0
+        for k in range(0, size, BLOCK_DIM):
+            a_shared[local_i, local_j] = a[i, k + local_j]
+            b_shared[local_i, local_j] = b[k + local_i, j]
+            cuda.syncthreads()
+
+            for local_k in range(min(BLOCK_DIM, size - k)):
+                acc += a_shared[local_i, local_k] * b_shared[local_k, local_j]
+        out[i, j] = acc
 
 
 jit_mm_practice = jit(_mm_practice)
@@ -514,22 +505,27 @@ def _tensor_matrix_multiply(
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
 
-    # Load data into shared memory
-    if i < a_shape[1] and pi < a_shape[2]:
-        a_shared[pi, pj] = a_storage[batch * a_batch_stride + i * a_strides[1] + pi]
-    if j < b_shape[2] and pj < b_shape[1]:
-        b_shared[pi, pj] = b_storage[batch * b_batch_stride + pj * b_strides[1] + j]
-
-    cuda.syncthreads()
-
-    # Compute the dot product for position c[i, j]
-    if i < out_shape[1] and j < out_shape[2]:
-        sum = 0.0
-        for k in range(a_shape[2]):  # or b_shape[1], since they should be equal
-            sum += a_shared[pi, k] * b_shared[k, pj]
-        out[batch * out_strides[0] + i * out_strides[1] + j] = (
-            sum  # Write the result to global memory
-        )
+    # Handle batching
+    if batch < a_shape[0] and batch < b_shape[0]:
+        # Load data into shared memory
+        if i < a_shape[1] and j < b_shape[2]:
+            acc = 0.0
+            ai_stride = a_strides[1]
+            ak_stride = a_strides[2]
+            bk_stride = b_strides[1]
+            bj_stride = b_strides[2]
+            for k in range(0, out_size, BLOCK_DIM):
+                # Convert index to contiguous index
+                a_pos = batch * a_batch_stride + i * ai_stride + (k + pi) * ak_stride
+                b_pos = batch * b_batch_stride + (k + pj) * bk_stride + j * bj_stride
+                a_shared[pi, pj] = a_storage[a_pos]
+                b_shared[pi, pj] = b_storage[b_pos]
+                cuda.syncthreads()
+                for local_k in range(min(BLOCK_DIM, out_size - k)):
+                    acc += a_shared[pi, local_k] * b_shared[local_k, pj]
+            # Calculate index of out
+            out_pos = batch * out_strides[0] + i * out_strides[1] + j * out_strides[2]
+            out[out_pos] = acc
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
