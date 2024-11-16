@@ -363,30 +363,30 @@ def tensor_reduce(
                 )  # can make even more efficient by directly calculating
                 # Load element into cache at position `pos`
                 cache[local_i] = a_storage[a_pos]
-            # else:
-            #     cache[local_i] = reduce_value  # Handle out-of-bounds
+            else:
+                cache[local_i] = reduce_value  # Handle out-of-bounds
 
             cuda.syncthreads()
 
-            # offset = 1
-            # # Perform reduction in shared memory
-            # while offset < BLOCK_DIM:
-            #     if local_i % (2 * offset) == 0 and local_i + offset < BLOCK_DIM:
-            #         cache[local_i] = fn(cache[local_i], cache[local_i + offset])
-            #     offset *= 2  # Double the offset
-            #     cuda.syncthreads()  # Ensure all threads have completed the addition
+            offset = 1
+            # Perform reduction in shared memory
+            while offset < BLOCK_DIM:
+                if local_i % (2 * offset) == 0 and local_i + offset < BLOCK_DIM:
+                    cache[local_i] = fn(cache[local_i], cache[local_i + offset])
+                offset *= 2  # Double the offset
+                cuda.syncthreads()  # Ensure all threads have completed the addition
 
             # Write the result for this block to the output
             if local_i == 0:
                 # Perform reduction in shared memory using a for loop
-                temp = reduce_value
-                for j in range(num_elements_to_reduce):
-                    temp = fn(temp, cache[j])
-                out[out_pos] = temp
+                # temp = reduce_value
+                # for j in range(num_elements_to_reduce):
+                #     temp = fn(temp, cache[j])
+                # out[out_pos] = temp
                 # reset reduce_dim index to 0 for calculating out_pos
                 # out_index[reduce_dim] = 0
                 # out_pos = index_to_position(out_index, out_strides)
-                # out[out_pos] = cache[0]
+                out[out_pos] = cache[local_i]
 
     return jit(_reduce)  # type: ignore
 
