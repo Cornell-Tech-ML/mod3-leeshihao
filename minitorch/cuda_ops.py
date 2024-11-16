@@ -511,7 +511,7 @@ def _tensor_matrix_multiply(
     bj_stride = b_strides[-1]
     max_k = a_shape[-1]
 
-    if batch < a_shape[0] and batch < b_shape[0]:
+    if batch < out_shape[0]:
         # Load data into shared memory
         acc = 0.0
         # 1) Move across shared dimension by block dim.
