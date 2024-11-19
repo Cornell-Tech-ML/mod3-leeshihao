@@ -441,6 +441,8 @@ part of the larger parallel loop (#16).
 Allocation hoisting:
 No allocation hoisting found
 None
+# Task 3_4
+![alt text](./images/speed-comparison.png)
 
 # Task 3_5
 ## Simple dataset - CPU
@@ -455,3 +457,9 @@ None
 ![alt text](./images/split-cpu.png)
 ## Split dataset - GPU
 ![alt text](./images/split-gpu.png)
+## Large model - CPU
+![alt text](./images/large-cpu.png)
+Training takes 0.481378s/epoch
+## Large model - GPU
+![alt text](./images/large-gpu.png)
+Training takes 1.918118s/epoch
