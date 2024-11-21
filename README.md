@@ -459,7 +459,5 @@ None
 ![alt text](./images/split-gpu.png)
 ## Large model - CPU
 ![alt text](./images/large-cpu.png)
-Training takes 0.481378s/epoch
 ## Large model - GPU
 ![alt text](./images/large-gpu.png)
-Training takes 1.918118s/epoch
