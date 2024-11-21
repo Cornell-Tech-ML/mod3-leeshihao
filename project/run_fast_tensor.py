@@ -13,7 +13,7 @@ if numba.cuda.is_available():
 
 
 def default_log_fn(epoch, total_loss, correct, losses, avg_time):
-    print("Epoch ", epoch, " loss ", total_loss, "correct", correct, "avg time/epoch:", avg_time)
+    print("Epoch ", epoch, " loss ", total_loss, "correct", correct, f"avg time/epoch: {avg_time:.2f}s")
 
 
 def RParam(*shape, backend):
@@ -105,7 +105,7 @@ class FastTrain:
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 avg_time = sum(epoch_times[-10:]) / 10
-                log_fn(epoch, total_loss, correct, losses, avg_time)
+                log_fn(epoch + 1, total_loss, correct, losses, avg_time)
 
 if __name__ == "__main__":
     import argparse
